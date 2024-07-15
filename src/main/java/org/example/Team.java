@@ -1,8 +1,11 @@
 package org.example;
 
+import lombok.Getter;
+
 public class Team {
     private final long id;
 
+    @Getter
     private final F1Cars[] cars = new F1Cars[2];
 
     private final PitStop pitStop = new PitStop();

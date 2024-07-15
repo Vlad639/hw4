@@ -1,5 +1,7 @@
 package org.example;
 
+import java.util.concurrent.BrokenBarrierException;
+
 /**
  * Работник питстопа, меняет шину на прибывшей машине на своем месте
  */
@@ -20,9 +22,18 @@ public class PitWorker extends Thread {
     public void run() {
         while (!isInterrupted()) {
             F1Cars car = pitStop.getCar();
-            //TODO работник ждет машину на питстопе и меняет шину на своей позиции
+            if (car == null) {
+                continue;
+            }
+
+            //работник ждет машину на питстопе и меняет шину на своей позиции
             car.getWheel(position).replaceWheel();
-            //TODO работник сообщает о готовности
+            try {
+                pitStop.getBarrier().await();
+            } catch (InterruptedException | BrokenBarrierException e) {
+                throw new RuntimeException(e);
+            }
+
         }
     }
 }

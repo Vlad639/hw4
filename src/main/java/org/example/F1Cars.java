@@ -3,6 +3,8 @@ package org.example;
 import lombok.Getter;
 
 import java.util.Random;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Поток болида
@@ -27,7 +29,7 @@ public class F1Cars extends Thread implements Comparable<F1Cars> {
     /**
      * Массив колес
      */
-    private Wheel wheels[] = new Wheel[4];
+    private final Wheel[] wheels;
 
     /**
      * Счетчик пройденной дистанции
@@ -42,7 +44,7 @@ public class F1Cars extends Thread implements Comparable<F1Cars> {
     /**
      * ГПСЧ
      */
-    private Random random;
+    private final Random random;
 
     /**
      * Время гонки, заполняется на финише
@@ -54,8 +56,8 @@ public class F1Cars extends Thread implements Comparable<F1Cars> {
         super("F1Car[" + carId + "]");
         this.carId = carId;
         this.pitStop = pitStop;
-        random = new Random();
-
+        this.random = new Random();
+        this.wheels = new Wheel[] {new Wheel(), new Wheel(), new Wheel(), new Wheel()};
     }
 
     /**
@@ -77,13 +79,21 @@ public class F1Cars extends Thread implements Comparable<F1Cars> {
      */
     @Override
     public void run() {
-        // TODO дожидаемся старта гонки
-        race.start(this);
-        while (currentDistance < targetDistance) {
-            moveToTarget();
+        // дожидаемся старта гонки
+        race.register(this);
+        try {
+            CountDownLatch start = race.getStart();
+            start.countDown();
+            start.await();
+            this.time = System.currentTimeMillis();
+            while (currentDistance < targetDistance) {
+                moveToTarget();
+            }
+        } catch (InterruptedException | BrokenBarrierException e) {
+            throw new RuntimeException(e);
         }
-        this.time = race.finish(this);
-
+        this.time = System.currentTimeMillis() - this.time;
+        race.getFinish().countDown();
     }
 
     /**
@@ -91,7 +101,7 @@ public class F1Cars extends Thread implements Comparable<F1Cars> {
      * 1) Проверяем необходимость заезда на питстоп
      * 2) Перемещаемся 1000 миллисекунд с случайной скоростью
      */
-    private void moveToTarget() {
+    private void moveToTarget() throws BrokenBarrierException, InterruptedException {
         if (isNeedPit()) {
             pitStop.pitline(this);
         }
